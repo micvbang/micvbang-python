@@ -25,7 +25,7 @@ def list_dir(path, dirs=False, files=True, ext=None):
 
 
 def open_file(path, mode='r'):
-    """ Open a file and return its handle.
+    """ Open a file and return a stream.
 
     If the file has .gz extension, `gzip.open` is used in place of `open`.
     """
