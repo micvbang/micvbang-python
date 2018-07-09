@@ -1,11 +1,13 @@
 import setuptools
 
+import micvbang
+
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
     name="micvbang",
-    version="0.0.1",
+    version=micvbang.__version__,
     author="Michael Bang",
     author_email="mic@vbang.dk",
     description="micvbang's often used utility functions",
