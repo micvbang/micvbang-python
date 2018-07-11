@@ -47,7 +47,10 @@ def list_dir(path='.', dirs=False, files=True, ext=None, recursive=False):
         yield from list_dir(d, dirs, files, ext, recursive=True)
 
 
-def open_file(path, mode='r'):
+_open = open
+
+
+def open(path, mode='r'):
     """ Open a file and return a stream.
 
     If the file has .gz extension, `gzip.open` is used in place of `open`.
@@ -56,4 +59,8 @@ def open_file(path, mode='r'):
     if ext == '.gz':
         return gzip.open(path, mode)
 
+    return _open(path, mode)
+
+
+def open_file(path, mode='r'):
     return open(path, mode)
