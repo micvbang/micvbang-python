@@ -1,4 +1,4 @@
-from .io import open_file
+import micvbang as mvb
 
 
 class ProgressTracker(object):
@@ -17,13 +17,13 @@ class ProgressTracker(object):
             self._fpath = 'progress.gz'
 
         try:
-            with open_file(self._fpath, 'rt') as f:
+            with mvb.open(self._fpath, 'rt') as f:
                 self._ids = set(f.read().split('\n'))
         except FileNotFoundError:
             pass
 
     def iter(self):
-        with open_file(self._fpath, 'at') as f:
+        with mvb.open(self._fpath, 'at') as f:
             for i, data in enumerate(self._it):
                 id = self._get_id(data)
                 if id in self._ids:

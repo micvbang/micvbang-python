@@ -1,7 +1,7 @@
 import os
 import json
 
-from .io import open_file
+import micvbang as mvb
 
 
 def json_load(path, none_on_error=False):
@@ -11,7 +11,7 @@ def json_load(path, none_on_error=False):
     if ext == '.gz':
         mode += 't'
 
-    with open_file(path, mode) as f:
+    with mvb.open(path, mode) as f:
         try:
             return json.load(f)
         except json.JSONDecodeError as e:
@@ -27,5 +27,5 @@ def json_dump(obj, path):
     if ext == '.gz':
         mode += 't'
 
-    with open_file(path, mode) as f:
+    with mvb.open(path, mode) as f:
         return json.dump(obj, f)
