@@ -14,7 +14,7 @@ class ProgressTracker(object):
 
         self._fpath = fpath
         if fpath is None:
-            self._fpath = 'progress.gz'
+            self._fpath = mvb.here('progress.gz')
 
         try:
             with mvb.open(self._fpath, 'rt') as f:
