@@ -60,7 +60,3 @@ def open(path, mode='r'):
         return gzip.open(path, mode)
 
     return _open(path, mode)
-
-
-def open_file(path, mode='r'):
-    return open(path, mode)
