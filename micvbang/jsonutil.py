@@ -4,10 +4,6 @@ import json
 from .io import open_file
 
 
-def load_json(path):
-    return json_load(path)
-
-
 def json_load(path, none_on_error=False):
     mode = 'r'
 
