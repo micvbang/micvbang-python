@@ -6,11 +6,12 @@ class ProgressTracker(object):
     """ The return value of get_id must not contain newlines.
     """
 
-    def __init__(self, it, get_id=None, f=None, fpath=None, flush_freq=0, print_skips_freq=0):
+    def __init__(self, it, get_id=None, f=None, fpath=None, auto_add=True, flush_freq=0, print_skips_freq=0):
         self._it = it
         self._get_id = get_id or (lambda x: str(x))
         self._flush_freq = flush_freq
         self._print_skips_freq = print_skips_freq
+        self._auto_add = auto_add
 
         self.skips = 0
         self._ids = set()
@@ -41,6 +42,9 @@ class ProgressTracker(object):
         if self._flush_freq and (num_iter - self.skips) % self._flush_freq == 0:
             getattr(f, 'flush', lambda: None)()
 
+    def add(self, id):
+        self._ids.add(id)
+
     def iter(self):
         try:
             self._ids = set(l[:-1] for l in self._progress_f.readlines())
@@ -59,7 +63,9 @@ class ProgressTracker(object):
                     self._print_skips()
                     continue
 
-                self._ids.add(id)
+                if self._auto_add:
+                    self.add(id)
+
                 self._progress_f.write("{id}\n".format(id=id))
                 yield data
 
