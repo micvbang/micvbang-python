@@ -2,6 +2,7 @@ import os
 import sys
 import gzip
 import stat
+import builtins
 
 
 def here(*ps):
@@ -47,9 +48,6 @@ def list_dir(path='.', dirs=False, files=True, ext=None, recursive=False):
         yield from list_dir(d, dirs, files, ext, recursive=True)
 
 
-_open = open
-
-
 def open(path, mode='r'):
     """ Open a file and return a stream.
 
@@ -59,4 +57,4 @@ def open(path, mode='r'):
     if ext == '.gz':
         return gzip.open(path, mode)
 
-    return _open(path, mode)
+    return builtins.open(path, mode)
