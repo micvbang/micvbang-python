@@ -6,12 +6,11 @@ class ProgressTracker(object):
     """ The return value of get_id must not contain newlines.
     """
 
-    def __init__(self, it, get_id=None, f=None, fpath=None, auto_add=True, flush_freq=0, print_skips_freq=0):
+    def __init__(self, it, get_id=None, f=None, fpath=None, flush_freq=0, print_skips_freq=0):
         self._it = it
         self._get_id = get_id or (lambda x: str(x))
         self._flush_freq = flush_freq
         self._print_skips_freq = print_skips_freq
-        self._auto_add = auto_add
 
         self.skips = 0
         self._ids = set()
@@ -42,15 +41,33 @@ class ProgressTracker(object):
         if self._flush_freq and (num_iter - self.skips) % self._flush_freq == 0:
             getattr(f, 'flush', lambda: None)()
 
-    def add(self, id):
+    def processed(self, id):
+        """ Mark an id as processed.
+
+        This means that it will not be returned when creating iterators using the same
+        progress file.
+        """
         self._ids.add(id)
+        self._progress_f.write("{id}\n".format(id=id))
+
+    def __iter__(self):
+        return self.iter()
 
     def iter(self):
-        try:
-            self._ids = set(l[:-1] for l in self._progress_f.readlines())
-            self._progress_f.seek(0)
-        except FileNotFoundError:
-            pass
+        """ Return an iterator that iterates over the given input iterator and
+        automatically tracks its progress. `processed` will be called _before_ each
+        value is returned to the user.
+        """
+        for id, data in self.iter_ids():
+            self.processed(id)
+            yield data
+
+    def iter_ids(self):
+        """ Return an iterator that yields an (id, data)-tuple. In order to mark an
+        iteration as processed, `processed` must be called with the given id.
+        """
+        self._ids = set(l[:-1] for l in self._progress_f.readlines())
+        self._progress_f.seek(0)
 
         with self._progress_f:
             for num_iter, data in enumerate(self._it):
@@ -63,10 +80,6 @@ class ProgressTracker(object):
                     self._print_skips()
                     continue
 
-                if self._auto_add:
-                    self.add(id)
-
-                self._progress_f.write("{id}\n".format(id=id))
-                yield data
+                yield id, data
 
                 self._flush(num_iter, self._progress_f)
