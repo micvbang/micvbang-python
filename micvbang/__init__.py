@@ -1,6 +1,6 @@
 from .version import version_info, __version__
 
-__all__ = ['io', 'jsonutil', 'dictutil']
+__all__ = ['io', 'jsonutil', 'dictutil', 'progress']
 
 from .io import open, list_dir, here
 from .jsonutil import json_load, json_dump
