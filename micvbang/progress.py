@@ -1,40 +1,66 @@
+import os
 import micvbang as mvb
 
 
 class ProgressTracker(object):
-    def __init__(self, it, get_id, fpath=None, flush_freq=0, print_skips_freq=0):
-        self.skips = 0
-        self._get_id = get_id
+    """ The return value of get_id must not contain newlines.
+    """
+
+    def __init__(self, it, get_id=None, f=None, fpath=None, flush_freq=0, print_skips_freq=0):
         self._it = it
-
-        self._ids = set()
-
+        self._get_id = get_id or (lambda x: str(x))
         self._flush_freq = flush_freq
         self._print_skips_freq = print_skips_freq
 
-        self._fpath = fpath
-        if fpath is None:
-            self._fpath = mvb.here('progress.gz')
+        self.skips = 0
+        self._ids = set()
+        self._closed = False
 
+        self._progress_f = self._make_f(f, fpath)
+
+    def _make_f(self, f, fpath):
+        if f is not None:
+            return f
+
+        p = fpath
+        if p is None:
+            p = mvb.here('progress.gz')
+
+        mode = 'a+'
+        _, ext = os.path.splitext(p)
+        if ext == '.gz':
+            mode += 't'
+
+        return mvb.open(p, mode)
+
+    def _print_skips(self):
+        if self._print_skips_freq and self.skips % self._print_skips_freq == 0:
+            print(" ... skipped {} ...".format(self.skips))
+
+    def _flush(self, num_iter, f):
+        if self._flush_freq and (num_iter - self.skips) % self._flush_freq == 0:
+            getattr(f, 'flush', lambda: None)()
+
+    def iter(self):
         try:
-            with mvb.open(self._fpath, 'rt') as f:
-                self._ids = set(f.read().split('\n'))
+            self._ids = set(l[:-1] for l in self._progress_f.readlines())
+            self._progress_f.seek(0)
         except FileNotFoundError:
             pass
 
-    def iter(self):
-        with mvb.open(self._fpath, 'at') as f:
-            for i, data in enumerate(self._it):
+        with self._progress_f:
+            for num_iter, data in enumerate(self._it):
+                if self._closed:
+                    return
+
                 id = self._get_id(data)
                 if id in self._ids:
                     self.skips += 1
-                    if self._print_skips_freq and self.skips % self._print_skips_freq == 0:
-                        print(" ... skipped {} ...".format(self.skips))
+                    self._print_skips()
                     continue
 
-                yield data
                 self._ids.add(id)
-                f.write("{}\n".format(id))
+                self._progress_f.write("{id}\n".format(id=id))
+                yield data
 
-                if self._flush_freq and i % self._flush_freq == 0:
-                    f.flush()
+                self._flush(num_iter, self._progress_f)
