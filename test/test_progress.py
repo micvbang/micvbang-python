@@ -1,5 +1,6 @@
 import os
 import io
+from unittest.mock import MagicMock
 
 import micvbang as mvb
 
@@ -27,7 +28,8 @@ def test_progress_input_equals_output():
 
 
 def test_iter_progress_resume():
-    """ When using iter, verify that progress is automatically tracked and correctly continued.
+    """ When using iter, verify that progress is automatically tracked and correctly continued
+    on a clean exit.
     """
     progress_f = ReusableStringIO()
     r_len = 1000
@@ -38,6 +40,39 @@ def test_iter_progress_resume():
     for _ in range(half_len):
         next(pt_iter)
     pt_iter.close()
+
+    # Use progress_f to continue from last processed iteration.
+    continue_pt = mvb.ProgressTracker(range(r_len), f=progress_f)
+    continue_it = continue_pt.iter()
+
+    for expected in range(half_len, half_len * 2):
+        assert expected == next(continue_it)
+
+    assert continue_pt.skips == half_len
+
+
+def test_iter_progress_resume_on_exception():
+    """ When using iter, verify that progress is automatically tracked and correctly continued
+    on an unclean exit.
+    """
+    progress_f = ReusableStringIO()
+    r_len = 1000
+    half_len = int(r_len / 2)
+
+    pt = mvb.ProgressTracker(range(r_len), f=progress_f)
+    pt_iter = iter(pt.iter_ids())
+
+    try:
+        for i, (id, _) in enumerate(pt_iter):
+            # HACK: utilizing knowledge that ProgressTracker will call _get_id to force
+            # an unclean exit of the iterator.
+            if i == half_len:
+                pt._get_id = None
+                continue
+
+            pt.processed(id)
+    except TypeError:
+        pass
 
     # Use progress_f to continue from last processed iteration.
     continue_pt = mvb.ProgressTracker(range(r_len), f=progress_f)

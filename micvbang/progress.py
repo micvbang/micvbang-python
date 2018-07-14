@@ -62,9 +62,9 @@ class ProgressTracker(object):
         automatically tracks its progress. :func:`processed` will
         be called _before_ each value is returned to the user.
         """
-        for id, data in self.iter_ids():
+        for id, value in self.iter_ids():
             self.processed(id)
-            yield data
+            yield value
 
     def iter_ids(self):
         """ Return an iterator that yields an (id, data)-tuple. In order to mark an
@@ -74,16 +74,16 @@ class ProgressTracker(object):
         self._progress_f.seek(0)
 
         with self._progress_f:
-            for num_iter, data in enumerate(self._it):
+            for num_iter, value in enumerate(self._it):
                 if self._closed:
                     return
 
-                id = self._get_id(data)
+                id = self._get_id(value)
                 if id in self._ids:
                     self.skips += 1
                     self._print_skips()
                     continue
 
-                yield id, data
+                yield id, value
 
                 self._flush(num_iter, self._progress_f)
