@@ -48,8 +48,8 @@ class ProgressTracker(object):
     def processed(self, id):
         """ Mark an id as processed.
 
-        This means that it will not be returned when creating iterators using the same
-        progress file.
+        This means that values with the given id will **not** be returned when creating
+        iterators using the same progress file.
         """
         self._ids.add(id)
         self._progress_f.write("{id}\n".format(id=id))
@@ -60,7 +60,14 @@ class ProgressTracker(object):
     def iter(self):
         """ Return an iterator that iterates over the given input iterator and
         automatically tracks its progress. :func:`processed` will
-        be called _before_ each value is returned to the user.
+        be called **before** each value is returned to the user.
+
+        .. note::
+
+            Potential off-by-one error here; all ids are marked as `processed`
+            **before** they are returned and will therefore never be returned again.
+            If the program crashes and the id was not in fact processed by user code,
+            it may go unprocessed.
         """
         for id, value in self.iter_ids():
             self.processed(id)
