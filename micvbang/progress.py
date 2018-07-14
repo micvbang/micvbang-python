@@ -3,7 +3,11 @@ import micvbang as mvb
 
 
 class ProgressTracker(object):
-    """ The return value of get_id must not contain newlines.
+    """
+
+    .. note::
+
+        :param get_id: must return a string value that does **not** contain newlines.
     """
 
     def __init__(self, it, get_id=None, f=None, fpath=None, flush_freq=0, print_skips_freq=0):
@@ -55,8 +59,8 @@ class ProgressTracker(object):
 
     def iter(self):
         """ Return an iterator that iterates over the given input iterator and
-        automatically tracks its progress. `processed` will be called _before_ each
-        value is returned to the user.
+        automatically tracks its progress. :func:`processed` will
+        be called _before_ each value is returned to the user.
         """
         for id, data in self.iter_ids():
             self.processed(id)
@@ -64,7 +68,7 @@ class ProgressTracker(object):
 
     def iter_ids(self):
         """ Return an iterator that yields an (id, data)-tuple. In order to mark an
-        iteration as processed, `processed` must be called with the given id.
+        iteration as processed, :func:`processed` must be called with the given id.
         """
         self._ids = set(l[:-1] for l in self._progress_f.readlines())
         self._progress_f.seek(0)

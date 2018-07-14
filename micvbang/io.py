@@ -34,7 +34,7 @@ def list_dir(path='.', dirs=False, files=True, ext=None, recursive=False):
     Returns directories if dirs is set to True.
     Returns files if files is set True.
     Returns only files with the given extension if ext is set. Note that
-        the extension includes the dot, i.e. '.jpg'.
+    the extension includes the dot, i.e. '.jpg'.
     """
     if not recursive:
         yield from _list_dir(path, dirs, files, ext)
