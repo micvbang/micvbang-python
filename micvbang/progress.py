@@ -54,32 +54,37 @@ class ProgressTracker(object):
         return self.iter()
 
     def iter(self):
-        """ Return an iterator that iterates over the given input iterator and
-        automatically tracks its progress. `processed` will be called _before_ each
-        value is returned to the user.
+        """ Return an iterator that iterates over `it` and yields the values produced by `it`. 
+        The progress of `it` is automatically tracked.
+
+        Values returned by `it` will be marked as processed _before_ they are returned to the user.
+        Note the potential off-by-one error that will happen if a value yielded by the iterator is
+        not actually processed.
         """
-        for id, data in self.iter_ids():
+        for id, value in self.iter_ids():
             self.processed(id)
-            yield data
+            yield value
 
     def iter_ids(self):
-        """ Return an iterator that yields an (id, data)-tuple. In order to mark an
-        iteration as processed, `processed` must be called with the given id.
+        """ Return an iterator that iterates over `it` and yields an (id, value)-tuple, where id
+        is the value computed by get_id(value), and value is the value returned by `it`.
+
+        In order to mark a value as processed, `processed` must be called with `id`.
         """
         self._ids = set(l[:-1] for l in self._progress_f.readlines())
         self._progress_f.seek(0)
 
         with self._progress_f:
-            for num_iter, data in enumerate(self._it):
+            for num_iter, value in enumerate(self._it):
                 if self._closed:
                     return
 
-                id = self._get_id(data)
+                id = self._get_id(value)
                 if id in self._ids:
                     self.skips += 1
                     self._print_skips()
                     continue
 
-                yield id, data
+                yield id, value
 
                 self._flush(num_iter, self._progress_f)
