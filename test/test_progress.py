@@ -1,8 +1,10 @@
 import os
 import io
-from unittest.mock import MagicMock
+from collections import namedtuple
+import string
 
 import micvbang as mvb
+from micvbang.progress import ReadAppendFile
 
 
 class ReusableStringIO(io.StringIO):
@@ -111,3 +113,67 @@ def test_iter_ids_must_call_processed():
         assert expected == got
 
     assert continue_pt.skips == 0
+
+
+def test_make_file_obj_success():
+    """ Verify that different types of progress files are supported.
+
+        - No progress file given
+        - path names, including automatic gzipping .gz files
+        - file handle to read- and appendable file
+        - ReadAppendFile objects
+    """
+
+    TestFile = namedtuple('TestFile', ['name', 'make'])
+
+    def make_test_files():
+        # None, use default progress file
+        yield TestFile(name=mvb.here(mvb.ProgressTracker.DEFAULT_F_NAME), make=lambda: None)
+
+        # path names
+        fname = random_file_name('.txt')
+        yield TestFile(name=fname, make=lambda: fname)
+
+        fname = random_file_name('.gz')
+        yield TestFile(name=fname, make=lambda: fname)
+
+        # file-like, read- and appendable
+        fname = random_file_name('.txt')
+        yield TestFile(name=fname, make=lambda: mvb.open(fname, 'a+'))
+
+        # ReadAppendFile
+        fname = random_file_name('.txt')
+        yield TestFile(name=fname, make=lambda: ReadAppendFile(
+            open_read=lambda: mvb.open(fname, 'r'),
+            open_append=lambda: mvb.open(fname, 'a')
+        ))
+
+        fname = random_file_name('.gz')
+        yield TestFile(name=fname, make=lambda: ReadAppendFile(
+            open_read=lambda: mvb.open(fname, 'rt'),
+            open_append=lambda: mvb.open(fname, 'at')
+        ))
+
+    r = list(range(500))
+    expected_skips = len(r)
+
+    # Verify that progress file is created and can be continued from.
+    for test_file in make_test_files():
+        for _ in mvb.ProgressTracker(r, f=test_file.make()):
+            pass
+
+        pt = mvb.ProgressTracker(r, f=test_file.make())
+        for _ in pt:
+            pass
+
+        assert expected_skips == pt.skips
+        assert os.path.exists(test_file.name)
+        os.remove(test_file.name)
+
+
+def random_file_name(ext):
+    return '{name}{ext}'.format(name=random_string(), ext=ext)
+
+
+def random_string(length=25):
+    return ''.join(random.choice(string.ascii_letters) for _ in range(length))

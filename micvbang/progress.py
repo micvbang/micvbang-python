@@ -1,49 +1,73 @@
 import os
+from collections import namedtuple
+
 import micvbang as mvb
 
 
+ReadAppendFile = namedtuple('ReadAppendFile', ['open_read', 'open_append'])
+
+
 class ProgressTracker(object):
+    """ Track and continue progress over iterators, saving state in a file-like object.
+
     """
 
-    .. note::
+    DEFAULT_F_NAME = 'progress.gz'
 
-        :param get_id: must return a string value that does **not** contain newlines.
-    """
+    def __init__(self, it, get_id=None, f=None, flush_freq=0, print_skips_freq=0):
+        """
+        Arguments:
+            it(iterable): Iterable used to to make the iterator to track the progress of.
+            get_id(function): Function mapping values generated from :param it: to unique ids of type string.
 
-    def __init__(self, it, get_id=None, f=None, fpath=None, flush_freq=0, print_skips_freq=0):
+
+        .. note::
+
+            :param get_id: must return a string value that does **not** contain newlines.
+        """
         self._it = it
         self._get_id = get_id or (lambda x: str(x))
         self._flush_freq = flush_freq
         self._print_skips_freq = print_skips_freq
 
+        self._made_f = self._make_f(f)
+        self._progress_f = None
+
         self.skips = 0
         self._ids = set()
         self._closed = False
 
-        self._progress_f = self._make_f(f, fpath)
+        self._f = f
 
-    def _make_f(self, f, fpath):
-        if f is not None:
-            return f
+    def _make_f(self, f_in):
+        f = None
 
-        p = fpath
-        if p is None:
-            p = mvb.here('progress.gz')
+        if f_in is None:
+            f_in = mvb.here(self.DEFAULT_F_NAME)
 
-        mode = 'a+'
-        _, ext = os.path.splitext(p)
-        if ext == '.gz':
-            mode += 't'
+        if all(getattr(f_in, attr, False) for attr in ['read', 'write']):
+            f = f_in
+        elif type(f_in) is ReadAppendFile:
+            f = f_in
+        elif type(f_in) is str:
+            _, ext = os.path.splitext(f_in)
+            if ext == '.gz':
+                f = ReadAppendFile(
+                    open_read=lambda: mvb.open(f_in, mode='rt'),
+                    open_append=lambda: mvb.open(f_in, mode='at')
+                )
+            else:
+                f = mvb.open(f_in, 'a+')
 
-        return mvb.open(p, mode)
+        return f
 
     def _print_skips(self):
         if self._print_skips_freq and self.skips % self._print_skips_freq == 0:
             print(" ... skipped {} ...".format(self.skips))
 
-    def _flush(self, num_iter, f):
+    def _flush(self, num_iter):
         if self._flush_freq and (num_iter - self.skips) % self._flush_freq == 0:
-            getattr(f, 'flush', lambda: None)()
+            getattr(self._progress_f, 'flush', lambda: None)()
 
     def processed(self, id):
         """ Mark an id as processed.
@@ -51,8 +75,9 @@ class ProgressTracker(object):
         This means that values with the given id will **not** be returned when creating
         iterators using the same progress file.
         """
-        self._ids.add(id)
-        self._progress_f.write("{id}\n".format(id=id))
+        if id not in self._ids:
+            self._ids.add(id)
+            self._progress_f.write("{id}\n".format(id=id))
 
     def __iter__(self):
         return self.iter()
@@ -73,12 +98,29 @@ class ProgressTracker(object):
             self.processed(id)
             yield value
 
+    def _read_ids(self, f):
+        return set(f.read().split('\n'))
+
     def iter_ids(self):
         """ Return an iterator that yields an (id, data)-tuple. In order to mark an
         iteration as processed, :func:`processed` must be called with the given id.
         """
-        self._ids = set(l[:-1] for l in self._progress_f.readlines())
-        self._progress_f.seek(0)
+        self._ids = set()
+
+        is_read_append_file = type(self._made_f) is ReadAppendFile
+        if not is_read_append_file:
+            self._made_f.seek(0)
+            self._ids = self._read_ids(self._made_f)
+        else:
+            try:
+                with self._made_f.open_read() as f:
+                    self._ids = self._read_ids(f)
+            except FileNotFoundError:
+                pass
+
+        self._progress_f = self._made_f
+        if is_read_append_file:
+            self._progress_f = self._made_f.open_append()
 
         with self._progress_f:
             for num_iter, value in enumerate(self._it):
@@ -93,4 +135,4 @@ class ProgressTracker(object):
 
                 yield id, value
 
-                self._flush(num_iter, self._progress_f)
+                self._flush(num_iter)
