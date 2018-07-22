@@ -45,7 +45,7 @@ class ProgressTracker(object):
         if f_in is None:
             f_in = mvb.here(self.DEFAULT_F_NAME)
 
-        if all(getattr(f_in, attr, False) for attr in ['read', 'write']):
+        if self._is_file_like(f_in):
             f = f_in
         elif type(f_in) is ReadAppendFile:
             f = f_in
@@ -60,6 +60,9 @@ class ProgressTracker(object):
                 f = mvb.open(f_in, 'a+')
 
         return f
+
+    def _is_file_like(self, f):
+        return all(getattr(f, attr, False) for attr in ['read', 'write', 'seek'])
 
     def _print_skips(self):
         if self._print_skips_freq and self.skips % self._print_skips_freq == 0:
@@ -99,28 +102,33 @@ class ProgressTracker(object):
             yield value
 
     def _read_ids(self, f):
+        readlines = getattr(f, 'readlines', False)
+        if readlines:
+            return set(l[:-1] for l in readlines())
+
         return set(f.read().split('\n'))
+
+    def _init_ids(self, f):
+        if type(f) is ReadAppendFile:
+            try:
+                with self._made_f.open_read() as f:
+                    return self._read_ids(f)
+            except FileNotFoundError:
+                return set()
+
+        f.seek(0)
+        return self._read_ids(f)
 
     def iter_ids(self):
         """ Return an iterator that yields an (id, data)-tuple. In order to mark an
         iteration as processed, :func:`processed` must be called with the given id.
         """
-        self._ids = set()
+        self._ids = self._init_ids(self._made_f)
 
-        is_read_append_file = type(self._made_f) is ReadAppendFile
-        if not is_read_append_file:
-            self._made_f.seek(0)
-            self._ids = self._read_ids(self._made_f)
-        else:
-            try:
-                with self._made_f.open_read() as f:
-                    self._ids = self._read_ids(f)
-            except FileNotFoundError:
-                pass
-
-        self._progress_f = self._made_f
-        if is_read_append_file:
-            self._progress_f = self._made_f.open_append()
+        progress_f = self._made_f
+        if type(progress_f) is ReadAppendFile:
+            progress_f = self._made_f.open_append()
+        self._progress_f = progress_f
 
         with self._progress_f:
             for num_iter, value in enumerate(self._it):
