@@ -1,7 +1,6 @@
 import os
 import io
 from collections import namedtuple
-import string
 
 import micvbang as mvb
 from micvbang.progress import ReadAppendFile
@@ -131,24 +130,24 @@ def test_make_file_obj_success():
         yield TestFile(name=mvb.here(mvb.ProgressTracker.DEFAULT_F_NAME), make=lambda: None)
 
         # path names
-        fname = random_file_name('.txt')
+        fname = mvb.random_file_name('.txt')
         yield TestFile(name=fname, make=lambda: fname)
 
-        fname = random_file_name('.gz')
+        fname = mvb.random_file_name('.gz')
         yield TestFile(name=fname, make=lambda: fname)
 
-        # file-like, read- and appendable
-        fname = random_file_name('.txt')
+        # read and appendable file
+        fname = mvb.random_file_name('.txt')
         yield TestFile(name=fname, make=lambda: mvb.open(fname, 'a+'))
 
         # ReadAppendFile
-        fname = random_file_name('.txt')
+        fname = mvb.random_file_name('.txt')
         yield TestFile(name=fname, make=lambda: ReadAppendFile(
             open_read=lambda: mvb.open(fname, 'r'),
             open_append=lambda: mvb.open(fname, 'a')
         ))
 
-        fname = random_file_name('.gz')
+        fname = mvb.random_file_name('.gz')
         yield TestFile(name=fname, make=lambda: ReadAppendFile(
             open_read=lambda: mvb.open(fname, 'rt'),
             open_append=lambda: mvb.open(fname, 'at')
@@ -169,11 +168,3 @@ def test_make_file_obj_success():
         assert expected_skips == pt.skips
         assert os.path.exists(test_file.name)
         os.remove(test_file.name)
-
-
-def random_file_name(ext):
-    return '{name}{ext}'.format(name=random_string(), ext=ext)
-
-
-def random_string(length=25):
-    return ''.join(random.choice(string.ascii_letters) for _ in range(length))
