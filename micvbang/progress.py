@@ -82,6 +82,12 @@ class ProgressTracker(object):
             self._ids.add(id)
             self._progress_f.write("{id}\n".format(id=id))
 
+    def close(self):
+        """ Close :class:`ProgressTracker`. This ensures that no iterators created from the
+        instance will progress any further.
+        """
+        self._closed = True
+
     def __iter__(self):
         return self.iter()
 
@@ -95,7 +101,7 @@ class ProgressTracker(object):
             Potential off-by-one error here; all ids are marked as `processed`
             **before** they are returned and will therefore never be returned again.
             If the program crashes and the id was not in fact processed by user code,
-            it may go unprocessed.
+            it will go unprocessed.
         """
         for id, value in self.iter_ids():
             self.processed(id)
@@ -129,6 +135,9 @@ class ProgressTracker(object):
         if type(progress_f) is ReadAppendFile:
             progress_f = self._made_f.open_append()
         self._progress_f = progress_f
+
+        if self._closed:
+            return
 
         with self._progress_f:
             for num_iter, value in enumerate(self._it):

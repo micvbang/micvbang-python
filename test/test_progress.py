@@ -168,3 +168,36 @@ def test_make_file_obj_success():
         assert expected_skips == pt.skips
         assert os.path.exists(test_file.name)
         os.remove(test_file.name)
+
+
+def test_tracker_can_close():
+    """ Verify that no more iterations are performed once ProgressTracker.close has been called.
+    """
+    r = range(500)
+    half_len = len(r) / 2
+    pt = mvb.ProgressTracker(r, f=ReusableStringIO())
+
+    i = 0
+    for i, _ in enumerate(pt):
+        if i == half_len:
+            pt.close()
+
+        if i > half_len:
+            assert False
+
+    assert i == half_len
+
+
+def test_tracker_close_before_iterator():
+    """ Verify that no iterations are performed when ProgressTracker.close is called before
+    creating an iterator from the ProgressTracker.
+    """
+    r = range(500)
+    pt = mvb.ProgressTracker(r, f=ReusableStringIO())
+    pt.close()
+
+    i = 0
+    for i, _ in enumerate(pt):
+        assert False
+
+    assert 0 == i
